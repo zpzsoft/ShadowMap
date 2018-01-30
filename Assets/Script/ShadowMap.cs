@@ -41,12 +41,6 @@ public class ShadowMap : MonoBehaviour {
 
         //方向光的下一层挂载一个摄像机用于渲染获取目标物体的深度图.
         m_DepthCamera = InitDepthCamera(gameObject, m_DepthTexture);
-
-        int value1 = LayerMask.NameToLayer("Default");
-        int value2 = LayerMask.NameToLayer("Everything");
-        int value3 = LayerMask.NameToLayer("Objects") | LayerMask.NameToLayer("Ground");
-
-        Debug.Log("");
     }
 	
 	// Update is called once per frame
@@ -104,12 +98,6 @@ public class ShadowMap : MonoBehaviour {
 
         Shader.SetGlobalTexture("_ShadowDepthTex", m_DepthTexture);
         Shader.SetGlobalMatrix("_LightViewClipMatrix", m_LightVPMatrix);
-    }
-
-    void InitDepthCameraMatrix(Camera mainCamera, Camera lightCamera)
-    {
-        Vector3 nearClipCenter = mainCamera.transform.position + mainCamera.transform.forward * mainCamera.nearClipPlane;
-        Vector3 farClipCenter = mainCamera.transform.position + mainCamera.transform.forward * mainCamera.farClipPlane;
     }
 
     /// <summary>
