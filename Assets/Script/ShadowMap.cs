@@ -29,7 +29,6 @@ public class ShadowMap : MonoBehaviour
     public Shader m_CaptureDepthShader = null;
     public float m_MaxSceneHeight = 10;             //场景中可能出现的物体的最高高度.
     public float m_MinSceneHeight = 0;              //场景中可能出现的额物体的最低高度.
-    public bool m_FollowAdjust = true;
 
     [HideInInspector]
     public int m_CullingMask = -1;
@@ -57,8 +56,7 @@ public class ShadowMap : MonoBehaviour
 
         UpdateClipPlane(Camera.main, m_MinSceneHeight - 1, m_MaxSceneHeight + 1);
 
-        if (m_FollowAdjust)
-            UpdateDepthCamera(Camera.main, m_DepthCamera, m_DirectionalLight);
+        UpdateDepthCamera(Camera.main, m_DepthCamera, m_DirectionalLight);
 
         Prepare4Shader();
 
@@ -94,20 +92,13 @@ public class ShadowMap : MonoBehaviour
     }
 
     /// <summary>
-    /// 初始化RenderTexture和矩阵信息传递到Shader中.
+    /// 初始化RenderTexture和方向光投影矩阵信息传递到Shader中.
     /// </summary>
     void Prepare4Shader()
     {
-        Matrix4x4 m_posToUV = Matrix4x4.identity;
-        m_posToUV.SetRow(0, new Vector4(0.5f, 0, 0, 0.5f));
-        m_posToUV.SetRow(1, new Vector4(0, 0.5f, 0, 0.5f));
-        m_posToUV.SetRow(2, new Vector4(0, 0, 1, 0));
-        m_posToUV.SetRow(3, new Vector4(0, 0, 0, 1));
-
-        //从方相光角度(也就是深度摄像机)获取矩阵, 方便接受投影的地方做转换.
         Matrix4x4 world2View = m_DepthCamera.worldToCameraMatrix;
         Matrix4x4 projection = GL.GetGPUProjectionMatrix(m_DepthCamera.projectionMatrix, false);
-        m_LightVPMatrix = m_posToUV * projection * world2View;
+        m_LightVPMatrix = projection * world2View;
 
         Shader.SetGlobalTexture("_ShadowDepthTex", m_DepthTexture);
         Shader.SetGlobalMatrix("_LightViewClipMatrix", m_LightVPMatrix);
@@ -233,7 +224,6 @@ public class ShadowMapInspectorExtension : Editor
 
         DrawDefaultInspector();
 
-        //first init.
         //if (shadowMap.m_CullingMask < 0)
         {
             options.Clear();

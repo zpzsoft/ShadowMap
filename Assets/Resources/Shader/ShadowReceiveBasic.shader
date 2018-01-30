@@ -17,14 +17,14 @@ Shader "ShadowMap/ShadowMapReveiverBasic"
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma multi_compile_fog
-			
+
 			#include "UnityCG.cginc"	
 			#include "Assets/Resources/Shader/Inc/ShadowCG.cginc"
 
 			struct appdata
 			{
 				float4 vertex : POSITION;
-				float2 uv : TEXCOORD0;				
+				float2 uv : TEXCOORD0;
 			};
 
 			struct v2f
@@ -38,6 +38,15 @@ Shader "ShadowMap/ShadowMapReveiverBasic"
 			sampler2D _MainTex;
 			matrix _LightViewClipMatrix;
 			float4 _MainTex_ST;
+
+			float4 ComputeScreenPosInLight(float4 pos)
+			{
+				float4 o = pos * 0.5f;
+				o.xy = o.xy + o.w;
+				o.zw = pos.zw;
+
+				return o;
+			}
 			
 			v2f vert (appdata v)
 			{
@@ -52,8 +61,8 @@ Shader "ShadowMap/ShadowMapReveiverBasic"
 			fixed4 frag (v2f i) : SV_Target
 			{
 				//Comppute in light space.
-				float3 posInLight = mul(_LightViewClipMatrix, float4(i.worldPos, 1)).xyz;
-				float depth = tex2D(_ShadowDepthTex, posInLight.xy).r;
+				float4 posInLight = ComputeScreenPosInLight(mul(_LightViewClipMatrix, float4(i.worldPos, 1)));
+				float depth = tex2D(_ShadowDepthTex, posInLight.xy/ posInLight.w).r;
 				fixed4 col = tex2D(_MainTex, i.uv);
 
 				//Discard border.
