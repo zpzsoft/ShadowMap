@@ -17,7 +17,8 @@ using UnityEngine;
 using UnityEditor;
 
 [RequireComponent(typeof(Light))]
-public class ShadowMap : MonoBehaviour {
+public class ShadowMap : MonoBehaviour
+{
     private int m_DepthTextureWidth = 1024;
     private int m_DepthTextureHeight = 1024;
     private RenderTexture m_DepthTexture = null;
@@ -28,6 +29,7 @@ public class ShadowMap : MonoBehaviour {
     public Shader m_CaptureDepthShader = null;
     public float m_MaxSceneHeight = 10;             //场景中可能出现的物体的最高高度.
     public float m_MinSceneHeight = 0;              //场景中可能出现的额物体的最低高度.
+    public bool m_FollowAdjust = true;
 
     [HideInInspector]
     public int m_CullingMask = -1;
@@ -35,24 +37,29 @@ public class ShadowMap : MonoBehaviour {
     public int m_CullingMaskSelection = 0;
 
     // Use this for initialization
-    void Start () {
+    void Start()
+    {
         m_DirectionalLight = GetComponent<Light>();
         m_DepthTexture = InitRenderTexture();
 
         //方向光的下一层挂载一个摄像机用于渲染获取目标物体的深度图.
         m_DepthCamera = InitDepthCamera(gameObject, m_DepthTexture);
     }
-	
-	// Update is called once per frame
-	void Update () {
+
+    // Update is called once per frame
+    void Update()
+    {
         Graphics.SetRenderTarget(m_DepthTexture);
         GL.Clear(true, true, Color.white);
 
         if (null == m_DepthCamera) return;
         if (null == m_CaptureDepthShader) return;
 
-        UpdateClipPlane(Camera.main, m_MinSceneHeight, m_MaxSceneHeight);
-        UpdateDepthCamera(Camera.main, m_DepthCamera, m_DirectionalLight);
+        UpdateClipPlane(Camera.main, m_MinSceneHeight - 1, m_MaxSceneHeight + 1);
+
+        if (m_FollowAdjust)
+            UpdateDepthCamera(Camera.main, m_DepthCamera, m_DirectionalLight);
+
         Prepare4Shader();
 
         m_DepthCamera.RenderWithShader(m_CaptureDepthShader, "RenderType");
@@ -81,7 +88,7 @@ public class ShadowMap : MonoBehaviour {
         depthCamera.targetTexture = rt;
         depthCamera.nearClipPlane = 1.0f;
         depthCamera.farClipPlane = 10.0f;
-        depthCamera.cullingMask = (int)1<< m_CullingMask;
+        depthCamera.cullingMask = m_CullingMask;
 
         return depthCamera;
     }
@@ -91,10 +98,16 @@ public class ShadowMap : MonoBehaviour {
     /// </summary>
     void Prepare4Shader()
     {
+        Matrix4x4 m_posToUV = Matrix4x4.identity;
+        m_posToUV.SetRow(0, new Vector4(0.5f, 0, 0, 0.5f));
+        m_posToUV.SetRow(1, new Vector4(0, 0.5f, 0, 0.5f));
+        m_posToUV.SetRow(2, new Vector4(0, 0, 1, 0));
+        m_posToUV.SetRow(3, new Vector4(0, 0, 0, 1));
+
         //从方相光角度(也就是深度摄像机)获取矩阵, 方便接受投影的地方做转换.
         Matrix4x4 world2View = m_DepthCamera.worldToCameraMatrix;
         Matrix4x4 projection = GL.GetGPUProjectionMatrix(m_DepthCamera.projectionMatrix, false);
-        m_LightVPMatrix = projection * world2View;
+        m_LightVPMatrix = m_posToUV * projection * world2View;
 
         Shader.SetGlobalTexture("_ShadowDepthTex", m_DepthTexture);
         Shader.SetGlobalMatrix("_LightViewClipMatrix", m_LightVPMatrix);
@@ -148,7 +161,7 @@ public class ShadowMap : MonoBehaviour {
 
         float lowestDistance = (maxHeight - local2WorldMatrix.m13) / (nLowestPoint.x * local2WorldMatrix.m10 + nLowestPoint.y * local2WorldMatrix.m11 + nLowestPoint.z * local2WorldMatrix.m12);
         float highestDistance = (minHeight - local2WorldMatrix.m13) / (fHighestPoint.x * local2WorldMatrix.m10 + fHighestPoint.y * local2WorldMatrix.m11 + fHighestPoint.z * local2WorldMatrix.m12);
-            
+
         mainCamera.nearClipPlane = lowestDistance;
         mainCamera.farClipPlane = highestDistance;
     }
@@ -201,7 +214,7 @@ public class ShadowMap : MonoBehaviour {
                 zSection.y = point.z;
         }
 
-        depthCamera.transform.localPosition = new Vector3((xSection.x + xSection.y)/2, (ySection.x + ySection.y)/2, zSection.y);
+        depthCamera.transform.localPosition = new Vector3((xSection.x + xSection.y) / 2, (ySection.x + ySection.y) / 2, zSection.y);
         depthCamera.nearClipPlane = 0;
         depthCamera.farClipPlane = zSection.x - zSection.y;
         depthCamera.orthographicSize = (ySection.x - ySection.y) / 2;
@@ -241,12 +254,20 @@ public class ShadowMapInspectorExtension : Editor
             for (int i = myBitArray.Count - 1; i >= 0; i--)
             {
                 if (myBitArray[i] == true)
-                    shadowMap.m_CullingMask |= LayerMask.NameToLayer(options[i]);
+                {
+                    if (shadowMap.m_CullingMask > 0)
+                        shadowMap.m_CullingMask |= 1 << LayerMask.NameToLayer(options[i]);
+                    else
+                        shadowMap.m_CullingMask = 1 << LayerMask.NameToLayer(options[i]);
+                }
+
             }
 
             Debug.Log("");
         }
         else
             shadowMap.m_CullingMask = shadowMap.m_CullingMaskSelection;
+
+        Debug.Log("shadowMap.m_CullingMaskSelection :" + shadowMap.m_CullingMaskSelection);
     }
 }

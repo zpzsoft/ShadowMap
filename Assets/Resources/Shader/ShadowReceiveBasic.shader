@@ -52,10 +52,9 @@ Shader "ShadowMap/ShadowMapReveiverBasic"
 			fixed4 frag (v2f i) : SV_Target
 			{
 				//Comppute in light space.
-				float3 posInLight = ComputeScreenPos(mul(_LightViewClipMatrix, float4(i.worldPos, 1)));
+				float3 posInLight = mul(_LightViewClipMatrix, float4(i.worldPos, 1)).xyz;
 				float depth = tex2D(_ShadowDepthTex, posInLight.xy).r;
 				fixed4 col = tex2D(_MainTex, i.uv);
-				UNITY_APPLY_FOG(i.fogCoord, col);
 
 				//Discard border.
 				float white = posInLight.x < 0.0 ? 1.0 : (posInLight.x > 1.0 ? 1.0 : (posInLight.y < 0.0 ? 1.0 : (posInLight.y > 1.0 ? 1.0 : 0.0)));
